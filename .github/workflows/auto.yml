@@ -1,4 +1,4 @@
-name: Aloo Cattle Auto
+name: Aloo Cattle Shorts
 on:
   workflow_dispatch:
   schedule:
@@ -11,57 +11,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+        with: { python-version: '3.11' }
       - run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
+          sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu
           pip install edge-tts pillow
       - run: |
           cat > main.py << 'PY'
           import asyncio, random, os, textwrap
-          from PIL import Image, ImageDraw
+          from PIL import Image, ImageDraw, ImageFont
           VOICE="ur-PK-AsadNeural"
           STORIES=[
-              "Assalam o Alaikum! Main hun Aloo Kisan. Aaj meri gaaye ne bohat doodh diya. Allah ka shukar hai. Aloo ke khet me bhi behtreen fasal hui hai.",
-              "Aaj aloo ke khet me zabardast fasal hui hai. Cattle farm ki khalis khaad se aloo motay hue hain. Gaayen bhi khush hain.",
-              "Aaj farm par ek nayi khubsurat bachri paida hui hai, humne uska naam Rani rakha hai. Rani bohat pyari hai."
+              "السلام علیکم! میں ہوں آلو کسان۔ آج آلو کی فصل زبردست ہوئی ہے۔ ہماری کیٹل فارم کی خالص کھاد سے آلو موٹے اور صحت مند ہوئے ہیں۔ آج رانی گائے نے بھی بیس کلو خالص دودھ دیا ہے۔ اللہ کا شکر ہے۔ ویڈیو کو لائک کریں اور چینل کو سبسکرائب کریں۔",
+              "آج آلو کیٹل فارم پر بہت خوشی کا دن ہے۔ آلو کے کھیت میں بہترین فصل ہوئی ہے۔ آلو بڑے بڑے اور تازہ ہیں۔ ہماری گائیں بھی صحت مند ہیں اور خالص دودھ دے رہی ہیں۔ آپ بھی ہمارے فارم کا خالص آلو اور دودھ خرید سکتے ہیں۔ شکریہ۔"
           ]
           async def main():
-              k=random.choice(STORIES)
-              open("kahani.txt","w",encoding="utf-8").write(k)
-              print(k)
+              kahani=random.choice(STORIES)
+              open("kahani.txt","w",encoding="utf-8").write(kahani)
+              print(kahani)
               try:
                   import edge_tts
-                  await edge_tts.Communicate(k, VOICE).save("voice.mp3")
+                  await edge_tts.Communicate(kahani, VOICE).save("voice.mp3")
+                  print("Voice OK")
               except Exception as e:
-                  print(f"TTS fail {e}")
-                  os.system("ffmpeg -y -f lavfi -i anullsrc=r=24000:cl=mono -t 10 -acodec libmp3lame voice.mp3")
-              # HD Image 1920x1080
-              W,H=1920,1080
-              img=Image.new('RGB',(W,H),color=(20,90,20))
+                  print(f"Voice fail {e}")
+                  os.system("ffmpeg -y -f lavfi -i anullsrc=r=24000:cl=mono -t 18 -acodec libmp3lame voice.mp3")
+              # 9:16 SHORTS IMAGE - 1080x1920
+              W,H=1080,1920
+              img=Image.new('RGB',(W,H),color=(255,235,180))
               d=ImageDraw.Draw(img)
-              d.rounded_rectangle([60,60,1860,1020],radius=40,fill=(255,255,225),outline=(255,215,0),width=10)
-              d.text((100,100),"ALOO CATTLE FARM - FULL HD 1080p",fill=(0,80,0))
-              lines=textwrap.wrap(k,width=55)
-              y=250
+              try:
+                  title_font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 58)
+                  text_font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 38)
+                  small_font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
+              except:
+                  title_font=text_font=small_font=ImageFont.load_default()
+              # Background
+              d.rectangle([0,0,W,700],fill=(101,67,33))
+              # Aloo draw - 5 aloo
+              for i in range(5):
+                  x=100+i*180
+                  y=200+random.randint(-30,30)
+                  d.ellipse([x,y,x+150,y+110],fill=(222,184,135),outline=(139,90,43),width=4)
+                  d.ellipse([x+20,y+20,x+30,y+30],fill=(101,67,33))
+              d.rectangle([0,700,W,H],fill=(255,255,230))
+              d.rounded_rectangle([20,720,1060,1800],radius=30,fill=(255,255,240),outline=(255,215,0),width=6)
+              d.text((50,740),"🥔 ALOO CATTLE FARM 🐄",font=title_font,fill=(0,100,0))
+              d.text((50,830),"Khalis Aloo | Khalis Doodh",font=text_font,fill=(100,50,0))
+              eng="Aloo ki fasal zabardast! 100% khalis khaad se motay aloo. Rani ne 20kg doodh diya. Like & Subscribe!"
+              lines=textwrap.wrap(eng,width=32)
+              y=920
               for line in lines:
-                  d.text((100,y),line,fill=(0,0,0))
+                  d.text((50,y),line,font=text_font,fill=(0,0,0))
                   y+=70
-              d.text((100,900),"Like | Share | Subscribe",fill=(200,0,0))
+              d.text((50,1400),"Aaj ki fasal: ALOO - Behtreen Quality",font=text_font,fill=(150,50,0))
+              d.text((50,1650),"👍 LIKE | 🔔 SUBSCRIBE\n📲 SHARE - Shukria!",font=text_font,fill=(200,0,0))
               img.save("bg.jpg",quality=95)
-              # VIDEO - 100% working command
-              cmd="ffmpeg -y -loop 1 -framerate 1 -i bg.jpg -i voice.mp3 -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest video_hd.mp4"
-              print(cmd)
-              os.system(cmd)
-              os.system("ls -lh && ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 voice.mp3 || true")
-          asyncio.run(main())
-          PY
-          python main.py
-      - uses: actions/upload-artifact@v4
-        with:
-          name: aloo-HD-video
-          path: |
-            *.mp4
-            *.jpg
-            *.mp3
-            *.txt
+              # VERTICAL 9:16 VIDEO - 15-20 sec
+              os.system("ffmpeg -y -loop 1 -framerate 1 -i bg.jpg -i voice.mp3 -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest -vf scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2 video_shorts.mp4")
+              os.system("ls -lh && ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 voice.mp

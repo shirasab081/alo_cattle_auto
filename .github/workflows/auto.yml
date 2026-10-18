@@ -13,51 +13,47 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+      - run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
           pip install edge-tts pillow
-      - name: Create HD Video
-        run: |
+      - run: |
           cat > main.py << 'PY'
           import asyncio, random, os, textwrap
           from PIL import Image, ImageDraw
-          VOICE = "ur-PK-AsadNeural"
-          KAHANIYAN = [
-              "Assalam o Alaikum! Main hun Aloo Kisan. Aaj meri gaaye ne bohat doodh diya. Allah ka shukar hai.",
-              "Aaj aloo ke khet me zabardast fasal hui hai. Cattle farm ki khaad se aloo motay hue hain.",
-              "Aaj farm par ek nayi bachri paida hui hai, naam Rani rakha hai. Rani bohat pyari hai.",
+          VOICE="ur-PK-AsadNeural"
+          STORIES=[
+              "Assalam o Alaikum! Main hun Aloo Kisan. Aaj meri gaaye ne bohat doodh diya. Allah ka shukar hai. Aloo ke khet me bhi behtreen fasal hui hai.",
+              "Aaj aloo ke khet me zabardast fasal hui hai. Cattle farm ki khalis khaad se aloo motay hue hain. Gaayen bhi khush hain.",
+              "Aaj farm par ek nayi khubsurat bachri paida hui hai, humne uska naam Rani rakha hai. Rani bohat pyari hai."
           ]
           async def main():
-              kahani = random.choice(KAHANIYAN)
-              print(f"Kahani: {kahani}")
-              open("kahani.txt","w",encoding="utf-8").write(kahani)
-              # Voice banao, fail ho to silent audio
+              k=random.choice(STORIES)
+              open("kahani.txt","w",encoding="utf-8").write(k)
+              print(k)
               try:
                   import edge_tts
-                  await edge_tts.Communicate(kahani, VOICE).save("voice.mp3")
-                  print("Voice OK")
+                  await edge_tts.Communicate(k, VOICE).save("voice.mp3")
               except Exception as e:
-                  print(f"Voice fail {e}, making silent")
-                  os.system("ffmpeg -y -f lavfi -i anullsrc=r=24000:cl=mono -t 8 -q:a 9 -acodec libmp3lame voice.mp3")
-              # HD Image 1080p
-              W,H = 1920,1080
-              img = Image.new('RGB', (W,H), color=(15,80,15))
-              d = ImageDraw.Draw(img)
-              d.rounded_rectangle([80,80,1840,1000], radius=40, fill=(255,255,230), outline=(255,215,0), width=12)
-              d.text((150,120), "ALOO CATTLE FARM", fill=(0,100,0))
-              lines = textwrap.wrap(kahani, width=50)
-              y=300
+                  print(f"TTS fail {e}")
+                  os.system("ffmpeg -y -f lavfi -i anullsrc=r=24000:cl=mono -t 10 -acodec libmp3lame voice.mp3")
+              # HD Image 1920x1080
+              W,H=1920,1080
+              img=Image.new('RGB',(W,H),color=(20,90,20))
+              d=ImageDraw.Draw(img)
+              d.rounded_rectangle([60,60,1860,1020],radius=40,fill=(255,255,225),outline=(255,215,0),width=10)
+              d.text((100,100),"ALOO CATTLE FARM - FULL HD 1080p",fill=(0,80,0))
+              lines=textwrap.wrap(k,width=55)
+              y=250
               for line in lines:
-                  d.text((150,y), line, fill=(0,0,0))
-                  y+=80
-              d.text((150,900), "Like | Share | Subscribe - Aloo Cattle Farm", fill=(200,0,0))
-              img.save("bg.jpg", quality=95)
-              # HD Video - hamesha banegi
-              os.system("ffmpeg -y -loop 1 -i bg.jpg -i voice.mp3 -c:v libx264 -b:v 5000k -c:a aac -pix_fmt yuv420p -shortest -vf scale=1920:1080 video_hd.mp4")
-              print("DONE")
-              os.system("ls -lh")
+                  d.text((100,y),line,fill=(0,0,0))
+                  y+=70
+              d.text((100,900),"Like | Share | Subscribe",fill=(200,0,0))
+              img.save("bg.jpg",quality=95)
+              # VIDEO - 100% working command
+              cmd="ffmpeg -y -loop 1 -framerate 1 -i bg.jpg -i voice.mp3 -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest video_hd.mp4"
+              print(cmd)
+              os.system(cmd)
+              os.system("ls -lh && ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 voice.mp3 || true")
           asyncio.run(main())
           PY
           python main.py
@@ -65,7 +61,7 @@ jobs:
         with:
           name: aloo-HD-video
           path: |
-            video_hd.mp4
-            bg.jpg
-            kahani.txt
-            voice.mp3
+            *.mp4
+            *.jpg
+            *.mp3
+            *.txt

@@ -1,58 +1,83 @@
-name: Flood Rescue - Lion Tiger Story
+name: Aloo Viral Video Auto
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'
 jobs:
-  generate:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
       - run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          pip install edge-tts requests pillow
-      - run: |
+          pip install requests edge-tts Pillow
+      - name: Generate Aloo Video
+        run: |
           cat > run.py << 'PY'
-          import asyncio, subprocess, requests, os, time
-          from urllib.parse import quote
-          import edge_tts
+          import time, requests, os, subprocess, textwrap
+          from PIL import Image, ImageDraw, ImageFont
 
-          async def main():
-              # 1. Check story.txt - agar nahi hai to khud banao - ERROR KHATAM
-              if not os.path.exists("story.txt"):
-                  print("story.txt nahi mila, khud bana raha hu...")
-                  open("story.txt","w",encoding="utf-8").write("बाबू देखो रे नदी का पुल टूट गया है रे हमारा गाँव डूब गया है रे। बाबू देखो पेड़ के ऊपर एक कुत्ता फस गया है रे। हमें सब लोगों को बचाना होगा रे।")
+          # آپ کی اسکرپٹ
+          if os.path.exists("story.txt"):
+              script = open("story.txt", encoding="utf-8").read()
+          else:
+              script = "میں سوچ رہا تھا کہ آج کا دن کتنا خوبصورت ہے... جب تک کے... اور اب میں سب کا فیورٹ ہوں! آلو ہمیشہ آل راؤنڈر رہے گا!"
 
-              text = open("story.txt", encoding="utf-8").read().strip()
-              print(f"TEXT: {text}")
-              await edge_tts.Communicate(text, "hi-IN-SwaraNeural", rate="-5%", volume="+30%").save("voice.mp3")
-              
-              dur = float(subprocess.check_output("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 voice.mp3", shell=True).decode().strip())
-              per = max(dur/3, 5)
-              print(f"Voice {dur} sec")
+          print("SCRIPT:", script)
 
-              # Aapki bheji hui video jaisi images
-              scenes = [
-                  "a lion in yellow raincoat and white tiger in pink raincoat on rock, flooded village background, 3d cartoon",
-                  "lion rescuing puppy from tree in flood, heavy rain, 3d cartoon cinematic",
-                  "many animals on rooftop in flood calling for help, lion in water, 3d cartoon"
-              ]
+          # 1. اردو وائس بناؤ
+          try:
+              os.system(f'edge-tts --voice ur-PK-AsadNeural --text "{script}" --write-media voice.mp3')
+          except:
+              os.system(f'edge-tts --voice ur-PK-UzmaNeural --text "{script}" --write-media voice.mp3')
 
-              for i, prompt in enumerate(scenes):
-                  idx = i+1
-                  url = f"https://image.pollinations.ai/prompt/{quote(prompt)}?width=1080&height=1920&seed={idx}"
-                  r = requests.get(url, timeout=150)
-                  open(f"scene{idx}.jpg","wb").write(r.content)
-                  time.sleep(1)
-                  subprocess.call(f"ffmpeg -y -loop 1 -t {per} -i scene{idx}.jpg -c:v libx264 -pix_fmt yuv420p -vf scale=1080:1920 -r 30 part{idx}.mp4", shell=True)
+          # 2. تصویر بنانے کا فنکشن - ٹائم آؤٹ والا فکس لگا ہوا ہے
+          def get_image(prompt, name):
+              url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1080&height=1920&nologo=true&model=flux"
+              for i in range(3):
+                  try:
+                      print(f"Trying Image {name} attempt {i+1}")
+                      r = requests.get(url, timeout=150)
+                      r.raise_for_status()
+                      open(f"{name}.jpg","wb").write(r.content)
+                      return True
+                  except Exception as e:
+                      print(f"Failed {e}, retrying in 15 sec...")
+                      time.sleep(15)
+              # اگر پھر بھی نہ بنے تو بیک اپ تصویر بنا لو
+              img = Image.new('RGB', (1080, 1920), color=(255, 220, 100))
+              d = ImageDraw.Draw(img)
+              d.text((100, 900), "Cute Aloo", fill=(0,0,0))
+              img.save(f"{name}.jpg")
+              return False
 
-              open("list.txt","w").write("file 'part1.mp4'\nfile 'part2.mp4'\nfile 'part3.mp4'\n")
-              subprocess.call("ffmpeg -y -f concat -safe 0 -i list.txt -i voice.mp3 -c:v libx264 -c:a aac -pix_fmt yuv420p -shortest -r 30 final_video.mp4", shell=True)
+          prompts = [
+              "3D animated cute potato smiling in vegetable basket, cinematic sunlight, Pixar style, ultra detailed",
+              "cute potato scared face being picked up by hand, funny dramatic expression, Pixar style",
+              "cute potato as crispy french fries with cool sunglasses, funny, Pixar style",
+              "pack of french fries winking with heart emojis, kawaii, viral style"
+          ]
 
-          asyncio.run(main())
+          for idx, p in enumerate(prompts):
+              get_image(p, f"scene{idx+1}")
+
+          # 3. چاروں تصویروں سے 15 سیکنڈ کی ویڈیو بناؤ + وائس لگاؤ
+          # ہر تصویر 4 سیکنڈ
+          with open("inputs.txt","w") as f:
+              for i in range(1,5):
+                  f.write(f"file 'scene{i}.jpg'\nduration 3.75\n")
+
+          # ویڈیو بناؤ
+          cmd = "ffmpeg -y -f concat -safe 0 -i inputs.txt -i voice.mp3 -vf scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920 -c:v libx264 -c:a aac -shortest -r 30 final_aloo_viral.mp4"
+          subprocess.call(cmd, shell=True)
+          print("Video Done!")
           PY
           python run.py
       - uses: actions/upload-artifact@v4
         with:
-          name: final-flood-video
-          path: final_video.mp4
+          name: aloo-viral-video
+          path: final_aloo_viral.mp4

@@ -1,4 +1,4 @@
-name: Aloo Real Scene Change
+name: Aloo Final Urdu Voice
 on:
   workflow_dispatch:
 jobs:
@@ -13,26 +13,24 @@ jobs:
           pip install edge-tts
       - run: |
           cat > run.py << 'PY'
-          import asyncio, subprocess, os, re
+          import asyncio, subprocess, os
           async def main():
               import edge_tts
-              if os.path.exists("story.txt"):
-                  raw = open("story.txt", encoding="utf-8").read()
-              else:
-                  raw = "Assalam o Alaikum! Main hoon Aloo kisan. Subah sawere main apne khet me gaya. Dopahar ko maine apni fasal ko organic khad dali. Shaam ko meri pyari Rani gaaye ne bees kilo doodh diya. Allah ka shukar hai."
-              clean = re.sub(r'[^\w\s.,!? ]', ' ', raw)
-              await edge_tts.Communicate(clean, "ur-PK-AsadNeural", rate="-5%").save("voice.mp3")
+              text = open("story.txt", encoding="utf-8").read().strip()
+              print(f"TEXT: {text}")
+              # Urdu voice - bilkul saaf bolega
+              await edge_tts.Communicate(text, "ur-PK-AsadNeural", rate="-10%", volume="+20%").save("voice.mp3")
               dur = float(subprocess.check_output("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 voice.mp3", shell=True).decode().strip())
               per = max(dur/3, 5)
-              print(f"Voice {dur}s, per scene {per}s")
               for i in [1,2,3]:
                   subprocess.call(f"ffmpeg -y -loop 1 -t {per} -i scene{i}.jpg -c:v libx264 -pix_fmt yuv420p -vf scale=1080:1920 -r 30 part{i}.mp4", shell=True)
               open("list.txt","w").write("file 'part1.mp4'\nfile 'part2.mp4'\nfile 'part3.mp4'\n")
-              subprocess.call("ffmpeg -y -f concat -safe 0 -i list.txt -stream_loop 1 -i voice.mp3 -c:v libx264 -c:a aac -pix_fmt yuv420p -shortest -r 30 video_shorts.mp4", shell=True)
+              subprocess.call("ffmpeg -y -f concat -safe 0 -i list.txt -i voice.mp3 -c:v libx264 -c:a aac -pix_fmt yuv420p -shortest -r 30 video_shorts.mp4", shell=True)
+              print("Done - 15 sec with clear Urdu voice")
           asyncio.run(main())
           PY
           python run.py
       - uses: actions/upload-artifact@v4
         with:
-          name: aloo-final-15sec
+          name: aloo-final-clear-voice
           path: video_shorts.mp4

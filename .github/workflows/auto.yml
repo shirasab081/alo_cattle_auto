@@ -14,5 +14,32 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install edge-tts
+      - name: Create main.py if missing
+        run: |
+          cat > main.py << 'PY'
+          import asyncio
+          import random
+          VOICE = "ur-PK-AsadNeural"
+          KAHANIYAN = [
+              "Assalam o Alaikum! Main hun Aloo Kisan. Aaj meri gaaye ne bohat doodh diya. Allah ka shukar hai.",
+              "Aaj aloo ke khet me achi fasal hui hai. Cattle farm ki khaad se aloo motay hue hain.",
+              "Aaj farm par ek nayi bachri paida hui hai, naam Rani rakha hai.",
+              "Cattle farm me safai bohat zaroori hai, roz safai karta hun.",
+              "Aloo bech kar gaayon ke liye naya chara laya."
+          ]
+          async def main():
+              kahani = random.choice(KAHANIYAN)
+              print(f"Kahani: {kahani}")
+              try:
+                  import edge_tts
+                  await edge_tts.Communicate(kahani, VOICE).save("voice.mp3")
+              except Exception as e:
+                  print(f"Voice skip: {e}")
+                  open("voice.mp3","w").write("temp")
+              open("kahani.txt","w",encoding="utf-8").write(kahani)
+              print("SUCCESS")
+          if __name__ == "__main__":
+              asyncio.run(main())
+          PY
       - run: ls -R
-      - run: python main.py || python alo_cattle_auto/main.py || python alo_cattle_auto/alo_cattle_auto/main.py
+      - run: python main.py

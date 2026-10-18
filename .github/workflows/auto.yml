@@ -1,4 +1,4 @@
-name: Aloo Image to Video Motion
+name: Flood Rescue - Lion Tiger Story
 on:
   workflow_dispatch:
 jobs:
@@ -10,25 +10,49 @@ jobs:
         with: { python-version: '3.11' }
       - run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          pip install edge-tts
+          pip install edge-tts requests pillow
       - run: |
           cat > run.py << 'PY'
-          import asyncio, subprocess, os
+          import asyncio, subprocess, requests, os, time
+          from urllib.parse import quote
+          import edge_tts
+
           async def main():
-              import edge_tts
+              # 1. Check story.txt - agar nahi hai to khud banao - ERROR KHATAM
+              if not os.path.exists("story.txt"):
+                  print("story.txt nahi mila, khud bana raha hu...")
+                  open("story.txt","w",encoding="utf-8").write("बाबू देखो रे नदी का पुल टूट गया है रे हमारा गाँव डूब गया है रे। बाबू देखो पेड़ के ऊपर एक कुत्ता फस गया है रे। हमें सब लोगों को बचाना होगा रे।")
+
               text = open("story.txt", encoding="utf-8").read().strip()
-              await edge_tts.Communicate(text, "ur-PK-AsadNeural", rate="-10%", volume="+30%").save("voice.mp3")
+              print(f"TEXT: {text}")
+              await edge_tts.Communicate(text, "hi-IN-SwaraNeural", rate="-5%", volume="+30%").save("voice.mp3")
+              
               dur = float(subprocess.check_output("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 voice.mp3", shell=True).decode().strip())
               per = max(dur/3, 5)
-              # یہ والا فلٹر امیج کو ویڈیو میں بدل دیتا ہے، حرکت دیتا ہے
-              for i in [1,2,3]:
-                  subprocess.call(f"ffmpeg -y -loop 1 -t {per} -i scene{i}.jpg -vf \"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=d=1:s=1080x1920:z='if(lte(zoom,1.0),1.2,max(1.001*zoom,1.5))'\" -c:v libx264 -pix_fmt yuv420p -r 30 part{i}.mp4", shell=True)
+              print(f"Voice {dur} sec")
+
+              # Aapki bheji hui video jaisi images
+              scenes = [
+                  "a lion in yellow raincoat and white tiger in pink raincoat on rock, flooded village background, 3d cartoon",
+                  "lion rescuing puppy from tree in flood, heavy rain, 3d cartoon cinematic",
+                  "many animals on rooftop in flood calling for help, lion in water, 3d cartoon"
+              ]
+
+              for i, prompt in enumerate(scenes):
+                  idx = i+1
+                  url = f"https://image.pollinations.ai/prompt/{quote(prompt)}?width=1080&height=1920&seed={idx}"
+                  r = requests.get(url, timeout=120)
+                  open(f"scene{idx}.jpg","wb").write(r.content)
+                  time.sleep(1)
+                  subprocess.call(f"ffmpeg -y -loop 1 -t {per} -i scene{idx}.jpg -c:v libx264 -pix_fmt yuv420p -vf scale=1080:1920 -r 30 part{idx}.mp4", shell=True)
+
               open("list.txt","w").write("file 'part1.mp4'\nfile 'part2.mp4'\nfile 'part3.mp4'\n")
-              subprocess.call("ffmpeg -y -f concat -safe 0 -i list.txt -i voice.mp3 -c:v libx264 -c:a aac -pix_fmt yuv420p -shortest -r 30 video_shorts.mp4", shell=True)
+              subprocess.call("ffmpeg -y -f concat -safe 0 -i list.txt -i voice.mp3 -c:v libx264 -c:a aac -pix_fmt yuv420p -shortest -r 30 final_video.mp4", shell=True)
+
           asyncio.run(main())
           PY
           python run.py
       - uses: actions/upload-artifact@v4
         with:
-          name: aloo-motion-video
-          path: video_shorts.mp4
+          name: final-flood-video
+          path: final_video.mp4

@@ -41,7 +41,7 @@ jobs:
               for i, prompt in enumerate(scenes):
                   idx = i+1
                   url = f"https://image.pollinations.ai/prompt/{quote(prompt)}?width=1080&height=1920&seed={idx}"
-                  r = requests.get(url, timeout=120)
+                  r = requests.get(url, timeout=150)
                   open(f"scene{idx}.jpg","wb").write(r.content)
                   time.sleep(1)
                   subprocess.call(f"ffmpeg -y -loop 1 -t {per} -i scene{idx}.jpg -c:v libx264 -pix_fmt yuv420p -vf scale=1080:1920 -r 30 part{idx}.mp4", shell=True)

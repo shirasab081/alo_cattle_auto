@@ -14,4 +14,5 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install edge-tts
-      - run: python alo_cattle_auto/main.py
+      - run: ls -R
+      - run: python main.py || python alo_cattle_auto/main.py || python alo_cattle_auto/alo_cattle_auto/main.py

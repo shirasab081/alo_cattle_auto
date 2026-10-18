@@ -13,53 +13,59 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install edge-tts pillow
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install edge-tts pillow
       - name: Create HD Video
         run: |
           cat > main.py << 'PY'
           import asyncio, random, os, textwrap
-          from PIL import Image, ImageDraw, ImageFont
+          from PIL import Image, ImageDraw
           VOICE = "ur-PK-AsadNeural"
           KAHANIYAN = [
-              "Assalam o Alaikum! Main hun Aloo Kisan. Aaj meri gaaye ne bohat doodh diya. Allah ka shukar hai. Aloo ke khet me bhi behtreen fasal hui hai.",
-              "Aaj aloo ke khet me zabardast fasal hui hai. Cattle farm ki khalis khaad se aloo motay aur mazedar hue hain. Gaayen bhi khush hain.",
-              "Aaj farm par ek nayi khubsurat bachri paida hui hai, humne uska naam Rani rakha hai. Rani bohat pyari hai.",
-              "Cattle farm me safai bohat zaroori hai. Main roz subah farm ki safai karta hun. Saaf farm se gaayen sehatmand rehti hain.",
-              "Aloo bech kar aaj gaayon ke liye taza hara chara laya hun. Meri sari gaayen khush ho kar chara kha rahi hain."
+              "Assalam o Alaikum! Main hun Aloo Kisan. Aaj meri gaaye ne bohat doodh diya. Allah ka shukar hai.",
+              "Aaj aloo ke khet me zabardast fasal hui hai. Cattle farm ki khaad se aloo motay hue hain.",
+              "Aaj farm par ek nayi bachri paida hui hai, naam Rani rakha hai. Rani bohat pyari hai.",
           ]
           async def main():
               kahani = random.choice(KAHANIYAN)
-              print(kahani)
+              print(f"Kahani: {kahani}")
               open("kahani.txt","w",encoding="utf-8").write(kahani)
-              import edge_tts
-              await edge_tts.Communicate(kahani, VOICE).save("voice.mp3")
-              # FULL HD 1080p Image 1920x1080
-              W,H = 1920, 1080
-              img = Image.new('RGB', (W,H), color=(15, 80, 15))
+              # Voice banao, fail ho to silent audio
+              try:
+                  import edge_tts
+                  await edge_tts.Communicate(kahani, VOICE).save("voice.mp3")
+                  print("Voice OK")
+              except Exception as e:
+                  print(f"Voice fail {e}, making silent")
+                  os.system("ffmpeg -y -f lavfi -i anullsrc=r=24000:cl=mono -t 8 -q:a 9 -acodec libmp3lame voice.mp3")
+              # HD Image 1080p
+              W,H = 1920,1080
+              img = Image.new('RGB', (W,H), color=(15,80,15))
               d = ImageDraw.Draw(img)
-              # White Box
-              d.rounded_rectangle([80,80,1840,1000], radius=40, fill=(255,255,230), outline=(255,215,0), width=10)
-              # Title
-              d.text((150,120), "🥔 ALOO CATTLE FARM 🐄", fill=(0,100,0), font=ImageFont.load_default())
-              # Kahani wrap karke likho
-              lines = textwrap.wrap(kahani, width=55)
-              y = 250
+              d.rounded_rectangle([80,80,1840,1000], radius=40, fill=(255,255,230), outline=(255,215,0), width=12)
+              d.text((150,120), "ALOO CATTLE FARM", fill=(0,100,0))
+              lines = textwrap.wrap(kahani, width=50)
+              y=300
               for line in lines:
-                  d.text((150,y), line, fill=(0,0,0), font=ImageFont.load_default())
-                  y += 70
-              d.text((150,900), "Like | Share | Subscribe", fill=(200,0,0))
-              img = img.resize((1920,1080))
+                  d.text((150,y), line, fill=(0,0,0))
+                  y+=80
+              d.text((150,900), "Like | Share | Subscribe - Aloo Cattle Farm", fill=(200,0,0))
               img.save("bg.jpg", quality=95)
-              # HD Video 1080p, High Bitrate
-              os.system("ffmpeg -y -loop 1 -i bg.jpg -i voice.mp3 -c:v libx264 -b:v 5000k -c:a aac -b:a 192k -pix_fmt yuv420p -shortest -vf scale=1920:1080 video_hd.mp4")
-              print("HD VIDEO READY 1080p")
+              # HD Video - hamesha banegi
+              os.system("ffmpeg -y -loop 1 -i bg.jpg -i voice.mp3 -c:v libx264 -b:v 5000k -c:a aac -pix_fmt yuv420p -shortest -vf scale=1920:1080 video_hd.mp4")
+              print("DONE")
+              os.system("ls -lh")
           asyncio.run(main())
           PY
-      - run: python main.py
+          python main.py
       - uses: actions/upload-artifact@v4
         with:
           name: aloo-HD-video
           path: |
             video_hd.mp4
+            bg.jpg
             kahani.txt
-      - run: ls -lh
+            voice.mp3

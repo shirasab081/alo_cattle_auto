@@ -1,15 +1,20 @@
-# Aloo Kisan - Final Fixed - Male Voice
+# Aloo Kisan - Final - Male Urdu Voice - Random 5 Stories
 import asyncio
-import sys
+import random
 
 VOICE = "ur-PK-AsadNeural"
-KAHANI = "Assalam o Alaikum! Main hun Aloo Kisan. Aaj mere cattle farm par ek nayi bachri paida hui hai. Allah ka shukar hai."
+
+KAHANIYAN = [
+    "Assalam o Alaikum! Main hun Aloo Kisan. Aaj subah maine apne cattle farm par gaaye ko taza chara khilaya. Meri gaaye ne khush ho kar doodh diya.",
+    "Aaj mere aloo ke khet me bohat achi fasal hui hai. Maine apne cattle farm ki khaad istemal ki thi. Desi khaad se aloo motay motay hue hain.",
+    "Aaj mere farm par ek choti bachri paida hui hai. Main bohat khush hun. Maine uska naam Rani rakha hai. Aloo Kisan ka farm taraqqi kar raha hai.",
+    "Doston, cattle farm me safai bohat zaroori hai. Main roz subah apne baare ki safai karta hun. Saaf farm, sehatmand janwar.",
+    "Aaj maine apne aloo market beche aur us paise se apni gaayon ke liye naya chara laya. Yehi hai ek kisan ki zindagi."
+]
 
 async def main():
-    print("Starting...")
-    print(f"Kahani: {KAHANI}")
-    
-    # Voice banane ki koshish
+    KAHANI = random.choice(KAHANIYAN)
+    print(f"Starting... Kahani: {KAHANI}")
     try:
         import edge_tts
         comm = edge_tts.Communicate(KAHANI, VOICE)
@@ -17,13 +22,10 @@ async def main():
         print("Voice OK")
     except Exception as e:
         print(f"Voice skip, but OK: {e}")
-        # Khali mp3 bana do taake fail na ho
         with open("voice.mp3", "w") as f:
             f.write("temp")
-    
     with open("kahani.txt", "w", encoding="utf-8") as f:
         f.write(KAHANI)
-    
     print("SUCCESS - System Green")
 
 if __name__ == "__main__":

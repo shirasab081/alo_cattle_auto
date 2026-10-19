@@ -1,4 +1,4 @@
-name: Aloo Direct 3 Photos Video
+name: Aloo Direct 3 Photos Video Fixed
 on: workflow_dispatch
 
 jobs:
@@ -15,17 +15,23 @@ jobs:
 
       - name: Make Video
         run: |
+          ls -lh
+          echo "Checking images..."
+          if [ ! -f s1.jpg ]; then echo "s1.jpg nahi mili! Upload karo"; exit 1; fi
+          if [ ! -f s2.jpg ]; then echo "s2.jpg nahi mili! Upload karo"; exit 1; fi
+          if [ ! -f s3.jpg ]; then echo "s3.jpg nahi mili! Upload karo"; exit 1; fi
+
           echo "Aloo kisan ban gaya. Pehle usne kheti ki, phir organic khaad dali, phir Rani gaaye se doodh liya. Ye hai Aloo ki mehnat ki kahani." > voice.txt
           edge-tts --voice ur-PK-AsadNeural --file voice.txt --write-media voice.mp3
           
-          ffmpeg -y -loop 1 -i s1.jpg -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=d=1:s=720x1280:fps=30:z='min(pzoom+0.0015,1.28)'" -t 5 -r 30 temp1.mp4
-          ffmpeg -y -loop 1 -i s2.jpg -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=d=1:s=720x1280:fps=30:z='min(pzoom+0.0015,1.28)'" -t 5 -r 30 temp2.mp4
-          ffmpeg -y -loop 1 -i s3.jpg -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=d=1:s=720x1280:fps=30:z='min(pzoom+0.0015,1.28)'" -t 5 -r 30 temp3.mp4
+          ffmpeg -y -loop 1 -i s1.jpg -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280" -t 5 -r 30 temp1.mp4
+          ffmpeg -y -loop 1 -i s2.jpg -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280" -t 5 -r 30 temp2.mp4
+          ffmpeg -y -loop 1 -i s3.jpg -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280" -t 5 -r 30 temp3.mp4
           
           printf "file 'temp1.mp4'\nfile 'temp2.mp4'\nfile 'temp3.mp4'\n" > concat.txt
           ffmpeg -y -f concat -safe 0 -i concat.txt -i voice.mp3 -c:v libx264 -c:a aac -shortest final_aloo_story.mp4
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Aloo-Story-Video
+          name: Aloo-Story-Video-Final
           path: final_aloo_story.mp4

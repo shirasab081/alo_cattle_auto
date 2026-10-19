@@ -1,11 +1,11 @@
-name: Aloo MoneyPrinter Turbo
+name: Aloo No Watermark Urdu
 on:
   workflow_dispatch:
     inputs:
       topic:
-        description: 'Video topic likho (Urdu/English)'
+        description: 'Topic (Urdu me likho)'
         required: true
-        default: 'Aloo ki emotional kahani fries ban gaya'
+        default: 'Aloo ki emotional kahani'
 
 jobs:
   build:
@@ -15,76 +15,63 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Install Tools
-        run: |
+      - run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           pip install requests edge-tts Pillow
 
-      - name: Generate Viral Video
+      - name: Generate Video Urdu
         env:
           TOPIC: ${{ github.event.inputs.topic }}
         run: |
           python -c "
           import os, requests, time, subprocess
-          from PIL import Image
+          topic = os.getenv('TOPIC', 'Aloo ki kahani')
 
-          topic = os.getenv('TOPIC', 'cute aloo story')
-          print(f'TOPIC: {topic}')
+          # 1. URDU STORY - Original general story
+          story_urdu = f'Ek tha chota sa aloo, {topic}. Sab usay nazar andaz karte thay. Ek din usay utha liya gaya, wo bohat dara. Lekin phir wo sunahri fries ban gaya kala chashma pehen kar. Ab sab us se pyar karte hain. Aloo hamesha all rounder hota hai!'
+          print(story_urdu)
 
-          # 1. SCRIPT (Urdu crash se bachne ke liye English me)
-          story = f'Once there was a small potato, {topic}. Everyone ignored him. One day he was picked up, he got scared. But then he became a crispy golden french fry with sunglasses. Now everyone loves him. Aloo is always all rounder!'
-          print(story)
+          # 2. URDU VOICE - Asad Neural (Urdu Male)
+          print('Making Urdu Voice...')
+          open('voice.txt','w',encoding='utf-8').write(story_urdu)
+          os.system('edge-tts --voice ur-PK-AsadNeural --file voice.txt --write-media voice.mp3')
+          if not os.path.exists('voice.mp3') or os.path.getsize('voice.mp3') < 5000:
+              print('Urdu failed, trying Uzma')
+              os.system('edge-tts --voice ur-PK-UzmaNeural --file voice.txt --write-media voice.mp3')
 
-          # 2. VOICE - Free Edge TTS
-          print('Making Voice...')
-          safe_story = story.replace('\"', '').replace(\"'\", '')
-          os.system(f'edge-tts --voice en-US-GuyNeural --text \"{safe_story}\" --write-media voice.mp3')
-          if not os.path.exists('voice.mp3'):
-              os.system('ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=stereo -t 14 -acodec libmp3lame voice.mp3')
-
-          # 3. FOOTAGE - AI Images like MoneyPrinterTurbo
-          def download_img(prompt, name):
-              url = f'https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=720&height=1280&nologo=true&model=flux&seed={int(time.time())}'
-              for i in range(6):
+          # 3. IMAGE DOWNLOAD + WATERMARK CUT
+          def get_img(prompt, name):
+              url = f'https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=768&height=1366&nologo=true&enhance=true&model=flux'
+              for i in range(5):
                   try:
-                      print(f'Downloading {name} try {i+1}')
                       r = requests.get(url, timeout=120)
-                      if r.status_code==200 and len(r.content)>15000:
+                      if r.status_code==200 and len(r.content)>20000:
                           open(name+'.jpg','wb').write(r.content)
-                          print(f'{name} OK')
                           return True
-                  except Exception as e:
-                      print(e)
-                  time.sleep(5)
-              Image.new('RGB',(720,1280),(255,200,100)).save(name+'.jpg')
+                  except: pass
+                  time.sleep(4)
               return False
 
-          p1 = f'cute 3d potato smiling in vegetable basket, pixar style, {topic}'
-          p2 = f'cute potato scared being picked up, emotional, {topic}'
-          p3 = f'crispy french fries with cool black sunglasses, {topic}'
-          p4 = f'happy french fries pack with hearts, viral, {topic}'
+          # Prompts - Aloo fries story, no text
+          get_img(f'cute 3d potato character in basket, pixar style, happy, no text, no watermark, {topic}', 's1')
+          get_img(f'cute potato scared being lifted, emotional story, 3d, no text, {topic}', 's2')
+          get_img(f'crispy french fries with cool black sunglasses, 3d cute, no text, {topic}', 's3')
+          get_img(f'french fries in red cup with heart nugget, yummy, 3d, no text, no logo, {topic}', 's4')
 
-          download_img(p1, 'scene1')
-          download_img(p2, 'scene2')
-          download_img(p3, 'scene3')
-          download_img(p4, 'scene4')
-
-          # 4. EDITING - Image to Video + Merge
+          # 4. EDIT - CROP WATERMARK (neeche wala 8% kaat do)
           for i in range(1,5):
-              subprocess.call(f'ffmpeg -y -loop 1 -i scene{i}.jpg -c:v libx264 -t 3.5 -vf scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280 -pix_fmt yuv420p -r 30 temp{i}.mp4', shell=True)
+              # pehle watermark wala hissa crop karo, phir 720x1280 banao
+              cmd = f'ffmpeg -y -loop 1 -i s{i}.jpg -vf \"crop=iw:ih*0.92:0:0,scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280\" -t 3.8 -r 30 -pix_fmt yuv420p temp{i}.mp4'
+              subprocess.call(cmd, shell=True)
 
           open('concat.txt','w').write(\"file 'temp1.mp4'\nfile 'temp2.mp4'\nfile 'temp3.mp4'\nfile 'temp4.mp4'\n\")
-          subprocess.call('ffmpeg -y -f concat -safe 0 -i concat.txt -i voice.mp3 -c:v libx264 -c:a aac -shortest -r 30 final_aloo_video.mp4', shell=True)
-
-          print('FINAL CHECK:', os.listdir('.'))
+          subprocess.call('ffmpeg -y -f concat -safe 0 -i concat.txt -i voice.mp3 -c:v libx264 -c:a aac -shortest -r 30 final_aloo_urdu.mp4', shell=True)
           "
 
-      - name: Upload Video
+      - name: Upload Final Video
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Aloo-Viral-Video
-          path: final_aloo_video.mp4
-          retention-days: 5
+          name: Aloo-Urdu-No-Watermark
+          path: final_aloo_urdu.mp4

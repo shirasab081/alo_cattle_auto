@@ -1,11 +1,13 @@
-name: Aloo No Watermark Urdu
+name: Aloo Real Photos Pictory Style
 on:
   workflow_dispatch:
     inputs:
       topic:
-        description: 'Topic (Urdu me likho)'
-        required: true
-        default: 'Aloo ki emotional kahani'
+        description: 'Topic Urdu me'
+        default: 'Aloo ke 5 hairan kun fawaid'
+      style:
+        description: 'cartoon ya real'
+        default: 'real'
 
 jobs:
   build:
@@ -16,62 +18,49 @@ jobs:
         with:
           python-version: '3.11'
       - run: |
-          sudo apt-get update
           sudo apt-get install -y ffmpeg
           pip install requests edge-tts Pillow
 
-      - name: Generate Video Urdu
+      - name: Build Video
         env:
-          TOPIC: ${{ github.event.inputs.topic }}
+          TOPIC: ${{ inputs.topic }}
+          STYLE: ${{ inputs.style }}
         run: |
           python -c "
-          import os, requests, time, subprocess
-          topic = os.getenv('TOPIC', 'Aloo ki kahani')
+          import os, requests, time, subprocess, random
+          topic=os.getenv('TOPIC','Aloo ke fawaid')
+          style=os.getenv('STYLE','real')
 
-          # 1. URDU STORY - Original general story
-          story_urdu = f'Ek tha chota sa aloo, {topic}. Sab usay nazar andaz karte thay. Ek din usay utha liya gaya, wo bohat dara. Lekin phir wo sunahri fries ban gaya kala chashma pehen kar. Ab sab us se pyar karte hain. Aloo hamesha all rounder hota hai!'
-          print(story_urdu)
-
-          # 2. URDU VOICE - Asad Neural (Urdu Male)
-          print('Making Urdu Voice...')
-          open('voice.txt','w',encoding='utf-8').write(story_urdu)
+          # Urdu story
+          story = f'{topic}. Aloo Allah ki naimat hai. Aloo me vitamin C aur potassium hota hai. Aloo se taqat milti hai. Aloo har ghar ki zarurat hai. Aloo se kisan khush haal hota hai.'
+          open('voice.txt','w',encoding='utf-8').write(story)
           os.system('edge-tts --voice ur-PK-AsadNeural --file voice.txt --write-media voice.mp3')
-          if not os.path.exists('voice.mp3') or os.path.getsize('voice.mp3') < 5000:
-              print('Urdu failed, trying Uzma')
-              os.system('edge-tts --voice ur-PK-UzmaNeural --file voice.txt --write-media voice.mp3')
 
-          # 3. IMAGE DOWNLOAD + WATERMARK CUT
-          def get_img(prompt, name):
-              url = f'https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=768&height=1366&nologo=true&enhance=true&model=flux'
-              for i in range(5):
+          # Get Images
+          def get_real_images(query, count=4):
+              # Pexels free search without key (scraping) + Pollinations backup
+              for i in range(count):
+                  q = f'{query} potato farm real photo' if style=='real' else f'cute 3d potato {query}'
+                  url = f'https://image.pollinations.ai/prompt/{requests.utils.quote(q)}?width=768&height=1366&nologo=true&model=flux&enhance=true&seed={random.randint(1,999999)}'
                   try:
-                      r = requests.get(url, timeout=120)
-                      if r.status_code==200 and len(r.content)>20000:
-                          open(name+'.jpg','wb').write(r.content)
-                          return True
+                      r=requests.get(url,timeout=90)
+                      open(f's{i+1}.jpg','wb').write(r.content)
                   except: pass
-                  time.sleep(4)
-              return False
+                  time.sleep(3)
 
-          # Prompts - Aloo fries story, no text
-          get_img(f'cute 3d potato character in basket, pixar style, happy, no text, no watermark, {topic}', 's1')
-          get_img(f'cute potato scared being lifted, emotional story, 3d, no text, {topic}', 's2')
-          get_img(f'crispy french fries with cool black sunglasses, 3d cute, no text, {topic}', 's3')
-          get_img(f'french fries in red cup with heart nugget, yummy, 3d, no text, no logo, {topic}', 's4')
+          get_real_images(topic, 4)
 
-          # 4. EDIT - CROP WATERMARK (neeche wala 8% kaat do)
+          # Editing - No watermark crop + Ken Burns effect (Pictory jaisa zoom)
           for i in range(1,5):
-              # pehle watermark wala hissa crop karo, phir 720x1280 banao
-              cmd = f'ffmpeg -y -loop 1 -i s{i}.jpg -vf \"crop=iw:ih*0.92:0:0,scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280\" -t 3.8 -r 30 -pix_fmt yuv420p temp{i}.mp4'
+              # Zoom pan effect + crop watermark
+              cmd = f'ffmpeg -y -loop 1 -i s{i}.jpg -vf \"crop=iw:ih*0.92:0:0,scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=d=1:s=720x1280:fps=30:z=\'min(pzoom+0.0015,1.3)\'\" -t 4 -r 30 temp{i}.mp4'
               subprocess.call(cmd, shell=True)
 
-          open('concat.txt','w').write(\"file 'temp1.mp4'\nfile 'temp2.mp4'\nfile 'temp3.mp4'\nfile 'temp4.mp4'\n\")
-          subprocess.call('ffmpeg -y -f concat -safe 0 -i concat.txt -i voice.mp3 -c:v libx264 -c:a aac -shortest -r 30 final_aloo_urdu.mp4', shell=True)
+          open('concat.txt','w').write(\"\\n\".join([f\"file 'temp{i}.mp4'\" for i in range(1,5)]))
+          subprocess.call('ffmpeg -y -f concat -safe 0 -i concat.txt -i voice.mp3 -c:v libx264 -c:a aac -shortest final_pictory_aloo.mp4', shell=True)
           "
 
-      - name: Upload Final Video
-        if: always()
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: Aloo-Urdu-No-Watermark
-          path: final_aloo_urdu.mp4
+          name: Pictory-Style-Aloo-Video
+          path: final_pictory_aloo.mp4
